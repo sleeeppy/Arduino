@@ -1,0 +1,12 @@
+.DS_Store
+*.d
+*.elf
+*.hex
+*.bin
+*.eep
+*.map
+*.lst
+build/
+.pio/
+.vscode/
+.idea/
