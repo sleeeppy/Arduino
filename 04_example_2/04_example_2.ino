@@ -1,12 +1,15 @@
-void setup() {
+void setup()
+{
   //Init
   Serial.begin(115200);
-  while(!Serial) {
+  while(!Serial)
+  {
     ;
   }
 }
 
-void loop() {
+void loop()
+{
   Serial.println("Hello World!");
   delay(1000);
 }
