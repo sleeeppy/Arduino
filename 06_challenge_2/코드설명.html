@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>06C17 코드 설명</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm 16mm 18mm; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    font-size: 11.5pt;
+    line-height: 1.45;
+    color: #111;
+  }
+  h1 { font-size: 16pt; margin: 0 0 6px; }
+  .meta { font-size: 10pt; color: #444; margin-bottom: 14px; }
+  h2 { font-size: 12.5pt; margin: 12px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+  p, li { margin: 0 0 6px; }
+  ul { margin: 0 0 8px 18px; padding: 0; }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 10pt; }
+  pre {
+    background: #f4f4f4;
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    margin: 6px 0 10px;
+    white-space: pre-wrap;
+  }
+  .note { font-size: 10.5pt; color: #333; }
+</style>
+</head>
+<body>
+  <h1>06C17 도전과제 2 — PWM 함수 구현</h1>
+  <div class="meta">코드 설명 (1페이지) · 주기 및 duty 설정 방법</div>
+
+  <h2>1. 회로</h2>
+  <p><code>5V — 220Ω — LED — GPIO7</code>. GPIO7이 LOW일 때 LED가 켜진다 (sink).</p>
+
+  <h2>2. 주기(period)와 duty 설정</h2>
+  <ul>
+    <li><code>set_period(int period)</code>: PWM 한 주기를 마이크로초(us)로 지정. 범위 100~10000.</li>
+    <li><code>set_duty(int duty)</code>: 한 주기에서 LED가 켜진 비율. 0~100%, 101단계. 0=꺼짐, 100=최대 밝기.</li>
+  </ul>
+  <p>세 주기는 배열로 미리 두고, <code>PERIOD_SELECT</code>만 바꿔 고른다.</p>
+  <pre>const int PERIODS_US[] = {10000, 1000, 100};  // 10ms, 1ms, 0.1ms
+#define PERIOD_SELECT 1  // 1=10ms, 2=1ms, 3=0.1ms</pre>
+  <p><code>setup()</code>에서 <code>set_period(PERIODS_US[PERIOD_SELECT - 1])</code>를 호출한다. 시작 시 LED가 1/2/3번 깜빡여 선택한 주기를 확인한다.</p>
+
+  <h2>3. PWM 구현</h2>
+  <p><code>analogWrite()</code> 없이 <code>digitalWrite()</code>와 <code>delayMicroseconds()</code>로 한 주기를 만든다.</p>
+  <ul>
+    <li>켜짐 시간 = <code>period × duty / 100</code></li>
+    <li>꺼짐 시간 = <code>period − 켜짐 시간</code></li>
+  </ul>
+
+  <h2>4. 삼각파 밝기</h2>
+  <p>duty를 0→100→0으로 바꾼다. 각 단계를 약 10ms 유지하므로 슬라이드 그래프처럼 1초 동안 최소→최대, 다음 1초 동안 최대→최소이다. 페이드 시간은 세 주기 모두 같고, period에 따라 깜빡임만 달라진다.</p>
+  <p class="note">영상 촬영: <code>PERIOD_SELECT</code>를 1, 2, 3으로 바꿔 각각 업로드한 뒤 녹화한다.</p>
+</body>
+</html>
