@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>13C02 코드 설명</title>
+<style>
+  @page { size: A4; margin: 12mm 13mm 11mm 13mm; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    font-size: 10pt;
+    line-height: 1.34;
+    color: #111;
+  }
+  h1 { font-size: 14.5pt; margin: 0 0 2px; }
+  .meta { font-size: 9pt; color: #444; margin-bottom: 6px; }
+  h2 { font-size: 11.5pt; margin: 7px 0 3px; border-bottom: 1px solid #ccc; padding-bottom: 1px; }
+  p, li { margin: 0 0 3px; }
+  ul { margin: 0 0 4px 16px; padding: 0; }
+  code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.5pt; }
+  pre {
+    background: #f4f4f4;
+    border: 1px solid #ddd;
+    padding: 4px 7px;
+    margin: 3px 0 4px;
+    white-space: pre-wrap;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 3px 0 4px; font-size: 9.4pt; }
+  th, td { border: 1px solid #bbb; padding: 2px 5px; text-align: left; }
+  th { background: #f0f0f0; }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+  <h1>13C02 도전과제 — 서보 저속 구동</h1>
+  <div class="meta">코드 설명 (2페이지) · 13_challenge_2.ino · 과제코드 13C02</div>
+
+  <h2>1. 과제</h2>
+  <p>12주차 코드는 <code>_SERVO_SPEED</code>를 5 이하로 두면 팔이 멈춘다. 한 주기(20 ms)에 움직일 펄스 폭이 1 µs보다 작아 <code>int</code>로 저장되면서 0이 되기 때문이다. 소수 µs를 <code>float</code>로 쌓아 1 µs가 될 때마다 움직이게 바꿨다.</p>
+  <p>요구 동작은 두 가지다. 3 °/s로 60초 동안 180°를 가고, 0.3 °/s로 300초 동안 90°를 간다. 한 업로드에서 두 구간을 이어 찍어 6분 영상으로 낸다.</p>
+
+  <h2>2. 5 °/s 아래에서 0이 되는 이유</h2>
+  <p>이 서보의 실측 duty는 0° = 550 µs, 90° = 1475 µs, 180° = 2400 µs다. 180°가 1850 µs이므로 1° ≈ 10.28 µs다. 12주차 정수는 아래 값을 소수점 버림으로 저장한다.</p>
+  <pre>step = (2400 − 550) / 180 × speed × 0.020</pre>
+  <table>
+    <tr><th>speed (°/s)</th><th>20 ms당 이동</th><th>int 저장</th><th>팔</th></tr>
+    <tr><td>5</td><td>1.03 µs</td><td>1</td><td>움직인다. 관찰한 최저 각속도와 같다</td></tr>
+    <tr><td>4</td><td>0.82 µs</td><td>0</td><td>멈춘다</td></tr>
+    <tr><td>3</td><td>0.62 µs</td><td>0</td><td>멈춘다</td></tr>
+    <tr><td>0.3</td><td>0.062 µs</td><td>0</td><td>멈춘다</td></tr>
+  </table>
+  <p>목표 duty를 바꿔도 더하는 양이 0이면 <code>duty_curr</code>가 시작 위치에 고정된다.</p>
+
+  <h2>3. float로 소수 µs를 모은다</h2>
+  <p><code>duty_pos</code>와 <code>duty_step</code>은 <code>float</code>다. 20 ms마다 <code>duty_pos += duty_step</code>을 하고, 서보에는 반올림한 정수만 <code>writeMicroseconds</code>로 보낸다. 3 °/s는 약 32 ms마다 1 µs, 0.3 °/s는 약 0.32초마다 1 µs가 늘어 평균 속도가 설정값과 같아진다. 펄스 분해능이 1 µs라 0.3 °/s는 미세하게 끊겨 보이며, 300초 합은 90°다.</p>
+  <p><code>attach(핀, 550, 2400)</code>으로 라이브러리 기본 하한 544 µs에 시작 위치가 잘리지 않게 했다. 1475 µs는 (550+2400)/2라 이 서보의 90°와 같다.</p>
+
+  <div class="page-break"></div>
+
+  <h2>4. 60초와 300초를 한 번에</h2>
+  <table>
+    <tr><th>phase</th><th>_SERVO_SPEED</th><th>duty</th><th>각도</th><th>시간</th></tr>
+    <tr><td>1</td><td>3</td><td>550 → 2400 µs</td><td>0° → 180°</td><td>180/3 = 60초</td></tr>
+    <tr><td>2</td><td>0.3</td><td>2400 → 1475 µs</td><td>180° → 90°</td><td>90/0.3 = 300초</td></tr>
+    <tr><td>3</td><td>—</td><td>1475 µs 유지</td><td>90°에서 정지</td><td>—</td></tr>
+  </table>
+  <p>시리얼은 1초에 한 줄만 출력한다. 20 ms마다 약 100자를 57600으로 보내면 한 줄에 약 17 ms가 걸려 루프가 주기를 넘기고, 60초·300초가 늘어진다. <code>phase:2,speed:0.3</code>이 2구간 시작이다.</p>
+
+  <h2>5. 촬영 방법</h2>
+  <ul>
+    <li><code>13_challenge_2.ino</code>를 업로드한다. 리셋 직후 0°에서 phase 1이 시작한다.</li>
+    <li>시리얼 모니터는 57600. <code>phase:1,speed:3</code>을 확인하고 리셋과 동시에 녹화를 시작한다.</li>
+    <li>6분을 한 테이크로 찍는다. 자막은 0:00–1:00에 <code>SERVO_SPEED = 3, 180°, 60초</code>, 1:00–6:00에 <code>SERVO_SPEED = 0.3, 90°, 300초</code>.</li>
+    <li>2구간에서 팔이 1 µs 단위로 천천히 가면 정상이다. 전혀 움직이지 않으면 정수 나눗셈이 남은 12주차 코드가 올라간 것이다.</li>
+  </ul>
+</body>
+</html>
